@@ -34,3 +34,6 @@ logs/
 *.swp
 *.swo
 *~
+*.jpg
+delete_db.py
+*.ttf
