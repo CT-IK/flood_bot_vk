@@ -89,6 +89,23 @@ try:
                 send_message(peer_id, answer)
             elif cmd == "!цт":
                 send_message(peer_id, "БУДЕТ СВОБОДНО")
+            elif cmd == "!помощь":
+                send = (
+                    'Команды:\n'
+                    '!помощь - просмотр списка команд\n'
+                    '!инфа [@username] - информация об активисте. Можно использовать ответом на сообщение\n'
+                    '!разбудить\n'
+                    '!не будить\n'
+                    '!будильник - список разбудяшек\n'
+                    '!дуэль [@username] - вызвать активиста на дуэль\n'
+                    '!рулетка - испытай удачу\n'
+                    '!вероятность [текст] - рассчитывает вероятность события\n'
+                    '!кто — узнать, кто больше всего соответствует запросу\n'
+                    '!цитата - сохраняет цитату активиста. Используйте ответом на сообщение\n'
+                    '!мысль\n'
+                    '!мут - мутит пользователя на 1 день. Используйте ответом на сообщение\n'
+                    '!анмут - анмутит пользователя. Используйте ответом на сообщение\n'
+                )
             elif cmd == "!кто":
                 members = vk.messages.getConversationMembers(peer_id=peer_id)
                 users = [u for u in members["profiles"] if u["id"] != -credentials.VK_GROUP_ID]
@@ -111,16 +128,12 @@ try:
                     if not message.get("reply_message"):
                         send_message(peer_id, "Ответь на сообщение пользователя")
                         continue
-                    if not text or not text.isdigit():
-                        send_message(peer_id, "Укажи время мута в часах")
-                        continue
-                    hours = int(text)
-                    mute_time = hours * 3600
+                    mute_time = 3600 * 24
                     target_id = message["reply_message"]["from_id"]
                     end_time = time.time() + mute_time
                     active_mutes[target_id] = end_time
                     name = next((u['first_name'] for u in members['profiles'] if u['id'] == target_id), 'Пользователь')
-                    send_message(peer_id, f"[id{target_id}|{name}] замучен на {hours} ч.")
+                    send_message(peer_id, f"[id{target_id}|{name}] замучен на 1 день")
                 except Exception as e:
                     logger.error(f"Ошибка команды !мут: {e}")
             elif cmd == "!анмут":
@@ -132,7 +145,7 @@ try:
                             sender_is_admin = True
                         break
                 if not sender_is_admin:
-                    send_message(peer_id, "Нельзя тебе мутить, маленький еще!")
+                    send_message(peer_id, "Нельзя тебе анмутить, маленький еще!")
                     continue
                 if not message.get("reply_message"):
                     send_message(peer_id, "Ответь на сообщение пользователя")
@@ -195,8 +208,11 @@ try:
                     if message.get('reply_message'):
                         data = message['reply_message']['from_id']
                     else:
-                        data = text
-                    user_date = bd.userdata(text)
+                        data = text.lower()
+                        data = list(data)
+                        data[0] = data[0].upper()
+                        data = ''.join(data)
+                    user_date = bd.userdata(data)
                     if user_date == None:
                         send = 'Активист не найден'
                     else:
@@ -238,7 +254,7 @@ try:
                 mute_time = 3600
                 end_time = time.time() + mute_time
                 active_mutes[looser] = end_time
-                send_message(peer_id, f"[id{looser}|{name}] соси хуец голубец целый час")
+                send_message(peer_id, f"[id{looser}|{name}] застрелен. Воскрешайся через час")
                 print(name)
 
 except KeyboardInterrupt:

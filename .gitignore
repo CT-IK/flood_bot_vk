@@ -1,10 +1,9 @@
-credentials.py
 *.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
+.env
 __pycache__/
 *.py[cod]
 *$py.class
@@ -37,4 +36,4 @@ logs/
 *.jpg
 delete_db.py
 *.ttf
-credentials.py
+myenv
