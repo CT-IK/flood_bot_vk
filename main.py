@@ -112,7 +112,7 @@ try:
                         send_message(peer_id, "Ответь на сообщение пользователя")
                         continue
                     if not text or not text.isdigit():
-                        send_message(peer_id, "Укажи время мута в секундах")
+                        send_message(peer_id, "Укажи время мута в часах")
                         continue
                     hours = int(text)
                     mute_time = hours * 3600

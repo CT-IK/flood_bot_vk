@@ -37,3 +37,4 @@ logs/
 *.jpg
 delete_db.py
 *.ttf
+credentials.py
