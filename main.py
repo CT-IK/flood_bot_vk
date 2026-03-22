@@ -3,13 +3,18 @@ import random
 import time
 import json
 import os
+import io
 import vk_api
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+import textwrap
 import requests
+from PIL import Image, ImageDraw, ImageFont
+from pilmoji import Pilmoji
+
 
 from datetime import datetime
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.utils import get_random_id
+from vk_api import VkUpload
 
 import credentials
 import bd
@@ -26,9 +31,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
+#создание файла для будильников
 ALARM_FILE = 'alarms.json'
-
+#перенос данных из файла в оперативную память
 def load_alarms():
     if not os.path.exists(ALARM_FILE):
         return {}
@@ -37,7 +42,7 @@ def load_alarms():
             return json.load(f)
         except:
             return {}
-
+#сохранение самих будильников
 def save_alarms(alarms):
     with open(ALARM_FILE, 'w', encoding='utf-8') as f:
         json.dump(alarms, f, indent=4, ensure_ascii=False)
@@ -58,65 +63,6 @@ try:
 except Exception as e:
     logger.error(f"Ошибка авторизации: {e}")
     exit(1)
-
-def create_quote_image(text, author_name, avatar_url):
-    width, height = 800, 400
-    img = Image.new('RGB', (width, height), color=(10, 10, 10))
-    draw = ImageDraw.Draw(img)
-    
-    try:
-        font_text = ImageFont.load_default() # Используем стандартный
-        font_author = ImageFont.load_default()
-    except:
-        pass
-
-    # --- РУЧНОЙ ПЕРЕНОС СТРОК ---
-    max_chars = 35  # Максимальное количество символов в строке
-    words = text.split(' ') # Разбиваем текст на слова
-    lines = []
-    current_line = ""
-
-    for word in words:
-        # Если слово влезает в текущую строку
-        if len(current_line) + len(word) + 1 <= max_chars:
-            current_line += (word + " ")
-        else:
-            # Если не влезает, сохраняем текущую и начинаем новую
-            lines.append(current_line.strip())
-            current_line = word + " "
-    lines.append(current_line.strip()) # Добавляем последний кусочек
-    # ----------------------------
-
-    # Отрисовка аватарки (логика та же)
-    try:
-        res = requests.get(avatar_url, timeout=5)
-        with open("temp_avatar.png", "wb") as f:
-            f.write(res.content)
-        avatar = Image.open("temp_avatar.png").convert("RGBA")
-        avatar = avatar.resize((180, 180))
-        mask = Image.new('L', (180, 180), 0)
-        ImageDraw.Draw(mask).ellipse((0, 0, 180, 180), fill=255)
-        img.paste(avatar, (50, 110), mask)
-    except:
-        draw.ellipse((50, 110, 230, 290), fill="gray")
-
-    # Отрисовка строк текста
-    y = 120
-    for line in lines:
-        draw.text((260, y), line, font=font_text, fill="white")
-        y += 45 # Смещение вниз для следующей строки
-
-    # Подпись автора
-    draw.text((260, y + 20), f"— {author_name}", font=font_author, fill="gray")
-
-    img.save('quote_result.png')
-    return 'quote_result.png'
-
-def upload_photo(peer_id, file_path, vk_session):
-    """Загружает файл на сервер ВК и возвращает attachment строку."""
-    upload = vk_api.VkUpload(vk_session)
-    photo = upload.photo_messages(file_path)[0]
-    return f"photo{photo['owner_id']}_{photo['id']}"
 
 # Запуск лонгпулла
 longpoll = VkBotLongPoll(vk_session, credentials.VK_GROUP_ID)
@@ -147,6 +93,7 @@ try:
             if not full_text: continue
             p_id_str = str(peer_id)
 
+            #фонавая проверка будильников
             current_time = datetime.now().strftime("%H:%M")
             if p_id_str in active_alarms:
                 for u_id_str, alarm_time in list(active_alarms[p_id_str].items()):
@@ -272,46 +219,42 @@ try:
                     send_message(peer_id, 'Цитата сохранена')
                 except Exception as e:
                     logger.error(f"Ошибка команды !цитата: {e}")
-            # elif cmd == "!мысль":
-                # try:
-                #     print(f"--- Команда !мысль вызвана пользователем {user_id} ---")
-                    
-                #     target_user_id = None
-                #     if text.startswith("[id"):
-                #         target_user_id = text.split('|')[0].replace("[id", "")
-                #         print(f"Ищем цитату конкретного пользователя: {target_user_id}")
-                
-                #     quote = bd.random_quote(target_user_id)
-                
-                #     if not quote:
-                #         send_message(peer_id, "💬 В базе нет подходящих цитат.")
-                #         continue
-
-                #     print(f"Цитата найдена: {quote}")
-                #     # ВАЖНО: Проверь индексы! Если в БД (id, author, text), то это 1 и 2
-                #     q_author_id = quote[1]
-                #     q_text = quote[2]
-
-                #     # Получаем данные автора из ВК
-                #     user_data = vk.users.get(user_ids=q_author_id, fields="photo_200")[0]
-                #     full_name = f"{user_data['first_name']} {user_data['last_name']}"
-                #     photo_url = user_data['photo_200']
-
-                #     print(f"Генерирую картинку для {full_name}...")
-                #     path = create_quote_image(q_text, full_name, photo_url)
-                
-                #     print("Загружаю фото на сервер ВК...")
-                #     attach = upload_photo(peer_id, path, vk_session)
-                    
-                #     print(f"Отправляю результат в чат {peer_id}...")
-                #     send_message(peer_id, message="", attachment=attach)
-                #     print("--- Успешно отправлено! ---")
-
-                # except Exception as e:
-                #     import traceback
-                #     logger.error(f"Ошибка в !мысль: {e}")
-                #     print(traceback.format_exc()) # Это выведет подробную ошибку в консоль
-                #     send_message(peer_id, "⚠️ Ошибка при создании цитаты. Проверь консоль.")
+            elif cmd == "!мысль":
+                font_eb_60=ImageFont.truetype('ArialBlackPrimer.ttf', 36)
+                random_quote = bd.random_quote()
+                if not random_quote:
+                    send_message(peer_id, "В базе еще нет сохраненных цитат!")
+                    continue
+                fwd_user_id = random_quote['user_id']
+                fwd_text = random_quote['text']
+                user_data = vk.users.get(user_ids=fwd_user_id, fields='photo_max')[0]
+                fwd_user_name = f"© {user_data['first_name']} {user_data['last_name']}"
+                # Настройка текста и высоты
+                lines = textwrap.wrap(f'«{fwd_text}»', width=42)
+                img_height = 620 + (len(lines) - 6) * 54 if (len(lines) - 6) > 0 else 620
+                img = Image.new('RGB', (1080, img_height), color='black')
+                # Отрисовка текста через Pilmoji
+                with Pilmoji(img) as pilmoji:
+                    y_text = 130
+                    for line in lines:
+                        pilmoji.text((50, y_text), line, font= font_eb_60, fill='white')
+                        y_text += 60
+                # Вставка фото автора (Requests + BytesIO)
+                resp = requests.get(user_data['photo_max'])
+                user_photo = Image.open(io.BytesIO(resp.content)).convert("RGBA").resize((110, 110))
+                mask = Image.new('L', (110, 110), 0)
+                ImageDraw.Draw(mask).ellipse((0, 0, 110, 110), fill=255)
+                img.paste(user_photo, (50, img_height - 135), mask)
+                # Подпись даты и имени
+                d = ImageDraw.Draw(img)
+                d.text((180, img_height - 115), fwd_user_name, font=font_eb_60, fill='white')
+                # Загрузка в ВК
+                img_ptr = io.BytesIO()
+                img.save(img_ptr, format='PNG')
+                img_ptr.seek(0)
+                upload = VkUpload(vk_session)
+                photo = upload.photo_messages(photos=img_ptr)[0]
+                vk.messages.send(peer_id=peer_id, random_id=0, attachment=f"photo{photo['owner_id']}_{photo['id']}")
             elif cmd == "!инфа":
                     if message.get('reply_message'):
                         data = message['reply_message']['from_id']
@@ -373,20 +316,20 @@ try:
                     
                     active_alarms[p_id_str][str(user_id)] = clean_time
                     save_alarms(active_alarms)
-                    send_message(peer_id, f"⏰ Окей, разбужу в {clean_time}")
+                    send_message(peer_id, f"Окей, разбужу в {clean_time}")
             elif cmd == "!небудить":
                 if p_id_str in active_alarms and str(user_id) in active_alarms[p_id_str]:
                     del active_alarms[p_id_str][str(user_id)]
                     save_alarms(active_alarms)
-                    send_message(peer_id, "🔕 Будильник отменен.")
+                    send_message(peer_id, "Будильник отменен.")
             elif cmd == "!будильник":
                 if p_id_str in active_alarms and active_alarms[p_id_str]:
                     msg = "📋 Будильники чата:\n"
                     for u_id, t in active_alarms[p_id_str].items():
-                        msg += f"• [id{u_id}|Спящий] — {t}\n"
+                        msg += f"[id{u_id}|Спящий] — {t}\n"
                     send_message(peer_id, msg)
                 else:
-                    send_message(peer_id, "⏰ Активных будильников нет.")
+                    send_message(peer_id, "Активных будильников нет.")
 
 except KeyboardInterrupt:
     logger.info("Бот остановлен")
