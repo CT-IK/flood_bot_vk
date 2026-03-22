@@ -324,7 +324,7 @@ try:
                     send_message(peer_id, "Будильник отменен.")
             elif cmd == "!будильник":
                 if p_id_str in active_alarms and active_alarms[p_id_str]:
-                    msg = "📋 Будильники чата:\n"
+                    msg = "Будильники чата:\n"
                     for u_id, t in active_alarms[p_id_str].items():
                         msg += f"[id{u_id}|Спящий] — {t}\n"
                     send_message(peer_id, msg)
